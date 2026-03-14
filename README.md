@@ -9,14 +9,13 @@ The project uses three annotation datasets:
 
 ## Project Components
 
-### Notebook
-Machine learning model and analysis  
-/notebooks/Comment_Annotation_Project.ipynb
+**Notebook (Model Implementation)**  
+[View Notebook](notebooks/Comment_Annotation_Project.ipynb)
 
-### Annotated Data
-/data/scores_1_annotated_style.csv  
-/data/scores_2_annotated_style.csv  
-/data/standardized_sheet.csv
+**Annotated Dataset**  
+- [scores_1_annotated_style.csv](data/scores_1_annotated_style.csv)  
+- [scores_2_annotated_style.csv](data/scores_2_annotated_style.csv)  
+- [standardized_sheet.csv](data/standardized_sheet.csv)
 
-### Project Report
-/docs/reddit_annotation_model_report.pdf
+**Project Report**  
+[Reddit Comment Annotation Model Report](docs/reddit_annotation_model_report.pdf)
