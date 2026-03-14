@@ -1,0 +1,1059 @@
+{
+ "cells": [
+  {
+   "cell_type": "markdown",
+   "id": "a7dfaf3a",
+   "metadata": {},
+   "source": [
+    "## Comment Annotation Project\n",
+    "-Francisco Azares smq727"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "id": "8b564da2",
+   "metadata": {},
+   "outputs": [
+    {
+     "data": {
+      "text/plain": [
+       "'C:\\\\Users\\\\Frank\\\\IS_6713\\\\Project'"
+      ]
+     },
+     "execution_count": 1,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "import os\n",
+    "os.getcwd()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 12,
+   "id": "8998454b",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "import csv\n",
+    "import numpy as np\n",
+    "import pandas as pd\n",
+    "from sklearn.feature_extraction.text import CountVectorizer\n",
+    "from sklearn.svm import LinearSVC\n",
+    "from sklearn.metrics import accuracy_score, f1_score\n",
+    "from sklearn.model_selection import train_test_split, GridSearchCV"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "49719350",
+   "metadata": {},
+   "source": [
+    "##### Final Cohen's Kappa assessment\n",
+    "- To improve cohens kappa, a process of taking annonations that were disagreed upon by the annotators had to be pulled and then manually adjudicated. The adjucated annonations were then merged into the annontations that agreed. This process would be repeated until a threshold was reached."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "id": "dd643187",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Annotator 1:\n",
+      "   Technology vs. Non-Technology  Nature vs. Non-Nature  \\\n",
+      "0                              1                      1   \n",
+      "1                              1                      0   \n",
+      "2                              0                      0   \n",
+      "3                              1                      0   \n",
+      "4                              1                      0   \n",
+      "\n",
+      "                                             Comment  \n",
+      "0  This definitely helps, thank you! Olmos Park/A...  \n",
+      "1  What kind of phone? I ironically smashed my sc...  \n",
+      "2  Had to read the entire thing to figure out you...  \n",
+      "3  &gt;How is it tied to funding?\\n\\nThis answer ...  \n",
+      "4  It's been great the few times I've used it.  H...  \n",
+      "\n",
+      "Annotator 2:\n",
+      "   Technology vs. Non-Technology  Nature vs. Non-Nature  \\\n",
+      "0                              1                      1   \n",
+      "1                              1                      0   \n",
+      "2                              0                      0   \n",
+      "3                              1                      0   \n",
+      "4                              1                      0   \n",
+      "\n",
+      "                                             Comment  \n",
+      "0  This definitely helps, thank you! Olmos Park/A...  \n",
+      "1  What kind of phone? I ironically smashed my sc...  \n",
+      "2  Had to read the entire thing to figure out you...  \n",
+      "3  &gt;How is it tied to funding?\\n\\nThis answer ...  \n",
+      "4  It's been great the few times I've used it.  H...  \n"
+     ]
+    }
+   ],
+   "source": [
+    "# Checking to see if the files are formatted properly\n",
+    "file1 = \"scores_1_annotated_style.csv\"\n",
+    "file2 = \"scores_2_annotated_style.csv\"\n",
+    "\n",
+    "df1 = pd.read_csv(file1)\n",
+    "df2 = pd.read_csv(file2)\n",
+    "\n",
+    "# Show the first few rows of each DataFrame to verify\n",
+    "print(\"Annotator 1:\")\n",
+    "print(df1.head())\n",
+    "\n",
+    "print(\"\\nAnnotator 2:\")\n",
+    "print(df2.head())"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "id": "6810a45c",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Cohen’s Kappa for Technology vs. Non-Technology: 0.871\n",
+      "Cohen’s Kappa for Nature vs. Non-Nature: 0.791\n"
+     ]
+    }
+   ],
+   "source": [
+    "from sklearn.metrics import cohen_kappa_score\n",
+    "\n",
+    "def read_labels(filename):\n",
+    "    tech_scores = []\n",
+    "    nature_scores = []\n",
+    "    with open(filename, encoding='utf-8-sig') as f:\n",
+    "        reader = csv.reader(f)\n",
+    "        next(reader)  # skip header\n",
+    "        for row in reader:\n",
+    "            try:\n",
+    "                tech_scores.append(float(row[0]))\n",
+    "                nature_scores.append(float(row[1]))\n",
+    "            except ValueError:\n",
+    "                continue  # skip rows with invalid/missing data\n",
+    "    return tech_scores, nature_scores\n",
+    "\n",
+    "tech_1, nature_1 = read_labels('scores_1_annotated_style.csv')\n",
+    "tech_2, nature_2 = read_labels(\"scores_2_annotated_style.csv\")\n",
+    "\n",
+    "# Compute Cohen’s Kappa\n",
+    "kappa_tech = cohen_kappa_score(tech_1, tech_2)\n",
+    "kappa_nature = cohen_kappa_score(nature_1, nature_2)\n",
+    "\n",
+    "print(f\"Cohen’s Kappa for Technology vs. Non-Technology: {kappa_tech:.3f}\")\n",
+    "print(f\"Cohen’s Kappa for Nature vs. Non-Nature: {kappa_nature:.3f}\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "a9846f7f",
+   "metadata": {},
+   "source": [
+    "##### Model Training and Testing - Technology vs Non-Technology"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 15,
+   "id": "ccca31dd",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Columns: ['Technology vs. Non-Technology', 'Nature vs. Non-Nature', 'Comment']\n",
+      "Number of rows: 1000\n"
+     ]
+    },
+    {
+     "data": {
+      "text/html": [
+       "<div>\n",
+       "<style scoped>\n",
+       "    .dataframe tbody tr th:only-of-type {\n",
+       "        vertical-align: middle;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe tbody tr th {\n",
+       "        vertical-align: top;\n",
+       "    }\n",
+       "\n",
+       "    .dataframe thead th {\n",
+       "        text-align: right;\n",
+       "    }\n",
+       "</style>\n",
+       "<table border=\"1\" class=\"dataframe\">\n",
+       "  <thead>\n",
+       "    <tr style=\"text-align: right;\">\n",
+       "      <th></th>\n",
+       "      <th>Technology vs. Non-Technology</th>\n",
+       "      <th>Nature vs. Non-Nature</th>\n",
+       "      <th>Comment</th>\n",
+       "    </tr>\n",
+       "  </thead>\n",
+       "  <tbody>\n",
+       "    <tr>\n",
+       "      <th>0</th>\n",
+       "      <td>1</td>\n",
+       "      <td>1</td>\n",
+       "      <td>This definitely helps, thank you! Olmos Park/A...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>1</th>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>What kind of phone? I ironically smashed my sc...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>2</th>\n",
+       "      <td>0</td>\n",
+       "      <td>0</td>\n",
+       "      <td>Had to read the entire thing to figure out you...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>3</th>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>&amp;gt;How is it tied to funding?\\n\\nThis answer ...</td>\n",
+       "    </tr>\n",
+       "    <tr>\n",
+       "      <th>4</th>\n",
+       "      <td>1</td>\n",
+       "      <td>0</td>\n",
+       "      <td>It's been great the few times I've used it.  H...</td>\n",
+       "    </tr>\n",
+       "  </tbody>\n",
+       "</table>\n",
+       "</div>"
+      ],
+      "text/plain": [
+       "   Technology vs. Non-Technology  Nature vs. Non-Nature  \\\n",
+       "0                              1                      1   \n",
+       "1                              1                      0   \n",
+       "2                              0                      0   \n",
+       "3                              1                      0   \n",
+       "4                              1                      0   \n",
+       "\n",
+       "                                             Comment  \n",
+       "0  This definitely helps, thank you! Olmos Park/A...  \n",
+       "1  What kind of phone? I ironically smashed my sc...  \n",
+       "2  Had to read the entire thing to figure out you...  \n",
+       "3  &gt;How is it tied to funding?\\n\\nThis answer ...  \n",
+       "4  It's been great the few times I've used it.  H...  "
+      ]
+     },
+     "execution_count": 15,
+     "metadata": {},
+     "output_type": "execute_result"
+    }
+   ],
+   "source": [
+    "# Load standardized sheet\n",
+    "df_gold = pd.read_csv('standardized_sheet.csv')\n",
+    "\n",
+    "# Preview the sheet\n",
+    "print(\"Columns:\", df_gold.columns.tolist())\n",
+    "print(\"Number of rows:\", len(df_gold))\n",
+    "df_gold.head()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 16,
+   "id": "a93d9212",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Class distribution (Technology vs. Non-Technology):\n",
+      "Non-Technology: 272 (27.20%)\n",
+      "Technology: 728 (72.80%)\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Printing distribution of labels for Technology vs Non-Technology\n",
+    "y_task1 = df_gold['Technology vs. Non-Technology'].astype(int).values\n",
+    "\n",
+    "unique, counts = np.unique(y_task1, return_counts=True)\n",
+    "dist = dict(zip(unique, counts))\n",
+    "\n",
+    "print(\"Class distribution (Technology vs. Non-Technology):\")\n",
+    "for label, count in dist.items():\n",
+    "    if label == 1:\n",
+    "        label_name = \"Technology\"\n",
+    "    else:\n",
+    "        label_name = \"Non-Technology\"\n",
+    "\n",
+    "    percentage = count / sum(counts) * 100\n",
+    "    print(f\"{label_name}: {count} ({percentage:.2f}%)\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 17,
+   "id": "f0586534",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Train size: 800 | Test size: 200\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Extract comment text and labels\n",
+    "X_txt = df_gold['Comment'].astype(str).values\n",
+    "y_task1 = df_gold['Technology vs. Non-Technology'].astype(int).values\n",
+    "\n",
+    "# Train/test split (80/20)\n",
+    "X_txt_train, X_txt_test, y_train, y_test = train_test_split(X_txt, y_task1, test_size=0.2, random_state=42)\n",
+    "\n",
+    "# Create and apply CountVectorizer\n",
+    "vec = CountVectorizer(ngram_range=(1, 2), stop_words='english')\n",
+    "X_train = vec.fit_transform(X_txt_train)\n",
+    "X_test = vec.transform(X_txt_test)\n",
+    "\n",
+    "print(f\"Train size: {len(X_txt_train)} | Test size: {len(X_txt_test)}\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 18,
+   "id": "d1f55ab0",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Define model and parameter grid\n",
+    "svc = LinearSVC(max_iter=10000)  # increase if warning persists\n",
+    "params = {'C': [0.01, 0.05, 0.1, 0.5, 1, 5]}\n",
+    "\n",
+    "# Grid search with 2-fold CV\n",
+    "clf = GridSearchCV(svc, params, cv=2)\n",
+    "clf.fit(X_train, y_train)\n",
+    "\n",
+    "# Predict on train and test sets\n",
+    "train_preds = clf.predict(X_train)\n",
+    "test_preds = clf.predict(X_test)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 19,
+   "id": "d509427b",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Best C: 0.5\n",
+      "Best cross-validation score: 0.83375\n",
+      "\n",
+      "All Grid Search Results:\n",
+      "Params: {'C': 0.01}, Mean CV Score: 0.7850\n",
+      "Params: {'C': 0.05}, Mean CV Score: 0.8050\n",
+      "Params: {'C': 0.1}, Mean CV Score: 0.8287\n",
+      "Params: {'C': 0.5}, Mean CV Score: 0.8337\n",
+      "Params: {'C': 1}, Mean CV Score: 0.8287\n",
+      "Params: {'C': 5}, Mean CV Score: 0.8175\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Print best parameter\n",
+    "print(\"Best C:\", clf.best_params_['C'])\n",
+    "print(\"Best cross-validation score:\", clf.best_score_)\n",
+    "\n",
+    "# Show all results from GridSearchCV\n",
+    "print(\"\\nAll Grid Search Results:\")\n",
+    "for mean, params in zip(clf.cv_results_['mean_test_score'], clf.cv_results_['params']):\n",
+    "    print(f\"Params: {params}, Mean CV Score: {mean:.4f}\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 21,
+   "id": "2f32c9da",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "\n",
+      "[Linear Regresion + CountVectorizer] Training Metrics:\n",
+      "Accuracy: 0.9988\n",
+      "Micro F1: 0.9988\n",
+      "Macro F1: 0.9984\n",
+      "\n",
+      "[Linear Regression + CountVectorizer] Testing Metrics:\n",
+      "Accuracy: 0.8950\n",
+      "Micro F1: 0.8950\n",
+      "Macro F1: 0.8660\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Training metrics\n",
+    "train_accuracy = accuracy_score(y_train, train_preds)\n",
+    "train_micro_f1 = f1_score(y_train, train_preds, average='micro')\n",
+    "train_macro_f1 = f1_score(y_train, train_preds, average='macro')\n",
+    "\n",
+    "# Testing metrics\n",
+    "test_accuracy = accuracy_score(y_test, test_preds)\n",
+    "test_micro_f1 = f1_score(y_test, test_preds, average='micro')\n",
+    "test_macro_f1 = f1_score(y_test, test_preds, average='macro')\n",
+    "\n",
+    "print(\"\\n[Linear Regresion + CountVectorizer] Training Metrics:\")\n",
+    "print(f\"Accuracy: {train_accuracy:.4f}\")\n",
+    "print(f\"Micro F1: {train_micro_f1:.4f}\")\n",
+    "print(f\"Macro F1: {train_macro_f1:.4f}\")\n",
+    "\n",
+    "print(\"\\n[Linear Regression + CountVectorizer] Testing Metrics:\")\n",
+    "print(f\"Accuracy: {test_accuracy:.4f}\")\n",
+    "print(f\"Micro F1: {test_micro_f1:.4f}\")\n",
+    "print(f\"Macro F1: {test_macro_f1:.4f}\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "94192d53",
+   "metadata": {},
+   "source": [
+    "Simple Linear model with and a vector parameter looking for unigrams and bigrams. Very confident that the model overfitted in Training"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 25,
+   "id": "4fe69d1b",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from sklearn.linear_model import LogisticRegression\n",
+    "\n",
+    "# Define logistic regression model\n",
+    "log_reg = LogisticRegression(max_iter=1000, solver='liblinear')  # Had to look up liblinear - apparently this is good for small dataset\n",
+    "\n",
+    "# Define parameter grid\n",
+    "params_log = {'C': [0.01, 0.05, 0.1, 0.5, 1, 5]}\n",
+    "\n",
+    "# Grid search\n",
+    "clf_log = GridSearchCV(log_reg, params_log, cv=2)\n",
+    "clf_log.fit(X_train, y_train)\n",
+    "\n",
+    "# Predictions\n",
+    "train_preds_log = clf_log.predict(X_train)\n",
+    "test_preds_log = clf_log.predict(X_test)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 26,
+   "id": "95743213",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "\n",
+      "[Logistic Regression + CountVectorizer] Training Metrics:\n",
+      "Accuracy: 0.9988\n",
+      "Micro F1: 0.9988\n",
+      "Macro F1: 0.9984\n",
+      "\n",
+      "[Logistic Regression + CountVectorizer] Testing Metrics:\n",
+      "Accuracy: 0.9050\n",
+      "Micro F1: 0.9050\n",
+      "Macro F1: 0.8758\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Training metrics\n",
+    "train_accuracy_log = accuracy_score(y_train, train_preds_log)\n",
+    "train_micro_f1_log = f1_score(y_train, train_preds_log, average='micro')\n",
+    "train_macro_f1_log = f1_score(y_train, train_preds_log, average='macro')\n",
+    "\n",
+    "# Testing metrics\n",
+    "test_accuracy_log = accuracy_score(y_test, test_preds_log)\n",
+    "test_micro_f1_log = f1_score(y_test, test_preds_log, average='micro')\n",
+    "test_macro_f1_log = f1_score(y_test, test_preds_log, average='macro')\n",
+    "\n",
+    "print(\"\\n[Logistic Regression + CountVectorizer] Training Metrics:\")\n",
+    "print(f\"Accuracy: {train_accuracy_log:.4f}\")\n",
+    "print(f\"Micro F1: {train_micro_f1_log:.4f}\")\n",
+    "print(f\"Macro F1: {train_macro_f1_log:.4f}\")\n",
+    "\n",
+    "print(\"\\n[Logistic Regression + CountVectorizer] Testing Metrics:\")\n",
+    "print(f\"Accuracy: {test_accuracy_log:.4f}\")\n",
+    "print(f\"Micro F1: {test_micro_f1_log:.4f}\")\n",
+    "print(f\"Macro F1: {test_macro_f1_log:.4f}\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "201fa562",
+   "metadata": {},
+   "source": [
+    "Switch to a logistic regression model and a vector parameter looking for unigrams and bigrams. Very confident that the model overfitted in Training"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 24,
+   "id": "92b7b013",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Adding params: SelectKBest and ngram vector\n",
+    "from sklearn.pipeline import Pipeline\n",
+    "from sklearn.feature_selection import SelectKBest, chi2\n",
+    "\n",
+    "# Had to do exteranl reaserch on how a pipline is used to handle multiple parameters is model building\n",
+    "pipe = Pipeline([\n",
+    "    ('vec', CountVectorizer(stop_words='english')),\n",
+    "    ('skb', SelectKBest(score_func=chi2)),\n",
+    "    ('clf', LogisticRegression(max_iter=1000, solver='liblinear'))\n",
+    "])\n",
+    "\n",
+    "# Grid search parameters\n",
+    "params = {\n",
+    "    'vec__ngram_range': [(1, 1), (1, 2)],\n",
+    "    'skb__k': [100, 500, 1000],\n",
+    "    'clf__C': [0.01, 0.1, 0.5, 1.0]\n",
+    "}\n",
+    "\n",
+    "# Run GridSearchCV\n",
+    "clf_pipe = GridSearchCV(pipe, params, cv=2)\n",
+    "clf_pipe.fit(X_txt_train, y_train)\n",
+    "\n",
+    "# Predictions\n",
+    "train_preds_pipe = clf_pipe.predict(X_txt_train)\n",
+    "test_preds_pipe = clf_pipe.predict(X_txt_test)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 13,
+   "id": "64f2baa0",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "\n",
+      "[Logistic + CountVectorizer + SelectKBest] Training Metrics:\n",
+      "Accuracy: 0.8612\n",
+      "Micro F1: 0.8612\n",
+      "Macro F1: 0.8141\n",
+      "\n",
+      "[Logistic + CountVectorizer + SelectKBest] Testing Metrics:\n",
+      "Accuracy: 0.8400\n",
+      "Micro F1: 0.8400\n",
+      "Macro F1: 0.7775\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Evaluate pipeline model on training set\n",
+    "train_acc_pipe = accuracy_score(y_train, train_preds_pipe)\n",
+    "train_micro_f1_pipe = f1_score(y_train, train_preds_pipe, average='micro')\n",
+    "train_macro_f1_pipe = f1_score(y_train, train_preds_pipe, average='macro')\n",
+    "\n",
+    "# Evaluate on test set\n",
+    "test_acc_pipe = accuracy_score(y_test, test_preds_pipe)\n",
+    "test_micro_f1_pipe = f1_score(y_test, test_preds_pipe, average='micro')\n",
+    "test_macro_f1_pipe = f1_score(y_test, test_preds_pipe, average='macro')\n",
+    "\n",
+    "# Print results\n",
+    "print(\"\\n[Logistic + CountVectorizer + SelectKBest] Training Metrics:\")\n",
+    "print(f\"Accuracy: {train_acc_pipe:.4f}\")\n",
+    "print(f\"Micro F1: {train_micro_f1_pipe:.4f}\")\n",
+    "print(f\"Macro F1: {train_macro_f1_pipe:.4f}\")\n",
+    "\n",
+    "print(\"\\n[Logistic + CountVectorizer + SelectKBest] Testing Metrics:\")\n",
+    "print(f\"Accuracy: {test_acc_pipe:.4f}\")\n",
+    "print(f\"Micro F1: {test_micro_f1_pipe:.4f}\")\n",
+    "print(f\"Macro F1: {test_macro_f1_pipe:.4f}\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "af3d7578",
+   "metadata": {},
+   "source": [
+    "Switch to a logistic regression model with SelectKBest parameter and a vector parameter looking for unigrams and bigrams. Model results are reasonibly high across the board whilst not in the range of overfitting."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 14,
+   "id": "11c4ebb1",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "from xgboost import XGBClassifier\n",
+    "\n",
+    "# Define pipeline with XGBoost - repalcing logistic regression with XGBoost\n",
+    "pipe_xgb = Pipeline([\n",
+    "    ('vec', CountVectorizer(stop_words='english')),\n",
+    "    ('skb', SelectKBest(score_func=chi2)),\n",
+    "    ('clf', XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42))\n",
+    "])\n",
+    "\n",
+    "# Grid search parameters\n",
+    "params_xgb = {\n",
+    "    'vec__ngram_range': [(1, 1), (1, 2)],\n",
+    "    'skb__k': [100, 500, 1000],\n",
+    "    'clf__n_estimators': [100, 200],\n",
+    "    'clf__max_depth': [3, 5],\n",
+    "    'clf__learning_rate': [0.1, 0.3]\n",
+    "}\n",
+    "\n",
+    "# Run grid search\n",
+    "clf_xgb = GridSearchCV(pipe_xgb, params_xgb, cv=2)\n",
+    "clf_xgb.fit(X_txt_train, y_train)\n",
+    "\n",
+    "# Predictions\n",
+    "train_preds_xgb = clf_xgb.predict(X_txt_train)\n",
+    "test_preds_xgb = clf_xgb.predict(X_txt_test)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 15,
+   "id": "d2e07756",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "\n",
+      "[XGBoost + CountVectorizer + SelectKBest] Training Metrics:\n",
+      "Accuracy: 0.9025\n",
+      "Micro F1: 0.9025\n",
+      "Macro F1: 0.8756\n",
+      "\n",
+      "[XGBoost + CountVectorizer + SelectKBest] Testing Metrics:\n",
+      "Accuracy: 0.8950\n",
+      "Micro F1: 0.8950\n",
+      "Macro F1: 0.8609\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Evaluate training performance\n",
+    "train_acc_xgb = accuracy_score(y_train, train_preds_xgb)\n",
+    "train_micro_f1_xgb = f1_score(y_train, train_preds_xgb, average='micro')\n",
+    "train_macro_f1_xgb = f1_score(y_train, train_preds_xgb, average='macro')\n",
+    "\n",
+    "# Evaluate test performance\n",
+    "test_acc_xgb = accuracy_score(y_test, test_preds_xgb)\n",
+    "test_micro_f1_xgb = f1_score(y_test, test_preds_xgb, average='micro')\n",
+    "test_macro_f1_xgb = f1_score(y_test, test_preds_xgb, average='macro')\n",
+    "\n",
+    "# Print results\n",
+    "print(\"\\n[XGBoost + CountVectorizer + SelectKBest] Training Metrics:\")\n",
+    "print(f\"Accuracy: {train_acc_xgb:.4f}\")\n",
+    "print(f\"Micro F1: {train_micro_f1_xgb:.4f}\")\n",
+    "print(f\"Macro F1: {train_macro_f1_xgb:.4f}\")\n",
+    "\n",
+    "print(\"\\n[XGBoost + CountVectorizer + SelectKBest] Testing Metrics:\")\n",
+    "print(f\"Accuracy: {test_acc_xgb:.4f}\")\n",
+    "print(f\"Micro F1: {test_micro_f1_xgb:.4f}\")\n",
+    "print(f\"Macro F1: {test_macro_f1_xgb:.4f}\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "a26987e4",
+   "metadata": {},
+   "source": [
+    "Switch to a XGB model with SelectKBest parameter and a vector parameter looking for unigrams and bigrams . Model results are higher than the previous model run whilst not in the range of overfitting. This model is deteremined to be the best one to use."
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 16,
+   "id": "449d039d",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "dict_keys(['vec', 'skb', 'clf'])\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Verify parameters of the latest model\n",
+    "print(clf_pipe.best_estimator_.named_steps.keys())"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 17,
+   "id": "bf95e7e6",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Top 30 most important features (Technology vs Non-Technology):\n",
+      "\n",
+      "['facebook' 'computers' 'taco' 'tech' 'phone' 'google' 'reddit' 'course'\n",
+      " 'starting' 'alamo' 'year' 'link' 'apps' 'high' 'data' 'company'\n",
+      " 'technology' 'city' 'law' 'html' 'subreddit' 'food' 'days' 'means' 'help'\n",
+      " 'apparently' 'certain' 'iphone' 'internet' 'programming']\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Task 1 feature creation \n",
+    "vec = clf_xgb.best_estimator_.named_steps['vec']\n",
+    "skb = clf_xgb.best_estimator_.named_steps['skb']\n",
+    "clf = clf_xgb.best_estimator_.named_steps['clf']\n",
+    "\n",
+    "# Get feature names selected by SelectKBest\n",
+    "feature_names = np.array(vec.get_feature_names_out())\n",
+    "top_features = feature_names[skb.get_support(indices=True)]\n",
+    "\n",
+    "# Get XGBoost importance scores\n",
+    "importances = clf.feature_importances_\n",
+    "\n",
+    "# Sort features by importance\n",
+    "sorted_idx = np.argsort(importances)[::-1]\n",
+    "top_features_sorted = top_features[sorted_idx]\n",
+    "\n",
+    "# Show top 30 features\n",
+    "print(\"Top 30 most important features (Technology vs Non-Technology):\\n\")\n",
+    "print(top_features_sorted[:30])"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "5913ecda",
+   "metadata": {},
+   "source": [
+    "##### Model Training and Testing - Nature vs Non-Nature"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 18,
+   "id": "5a1b6da5",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Train size: 800 | Test size: 200\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Use the same comment text\n",
+    "X_txt = df_gold['Comment'].astype(str).values\n",
+    "\n",
+    "# Extract Task 2 labels (Nature vs. Non-Nature)\n",
+    "y_task2 = df_gold['Nature vs. Non-Nature'].astype(int).values\n",
+    "\n",
+    "# Split for training/testing\n",
+    "from sklearn.model_selection import train_test_split\n",
+    "X_txt_train2, X_txt_test2, y_train2, y_test2 = train_test_split(X_txt, y_task2, test_size=0.2, random_state=42)\n",
+    "\n",
+    "print(f\"Train size: {len(X_txt_train2)} | Test size: {len(X_txt_test2)}\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 19,
+   "id": "a657d53e",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Class distribution (Nature vs. Non-Nature):\n",
+      "Non-Nature: 884 (88.40%)\n",
+      "Nature: 116 (11.60%)\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Printing distribution of labels for Nature vs Non-Nature\n",
+    "unique, counts = np.unique(y_task2, return_counts=True)\n",
+    "dist = dict(zip(unique, counts))\n",
+    "\n",
+    "print(\"Class distribution (Nature vs. Non-Nature):\")\n",
+    "for label, count in dist.items():\n",
+    "    if label == 1:\n",
+    "        label_name = \"Nature\"\n",
+    "    else:\n",
+    "        label_name = \"Non-Nature\"\n",
+    "    \n",
+    "    percentage = count / sum(counts) * 100\n",
+    "    print(f\"{label_name}: {count} ({percentage:.2f}%)\")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 20,
+   "id": "a0ce880d",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Define pipeline for Task 2\n",
+    "pipe_xgb2 = Pipeline([\n",
+    "    ('vec', CountVectorizer(stop_words='english')),\n",
+    "    ('skb', SelectKBest(score_func=chi2)),\n",
+    "    ('clf', XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42))\n",
+    "])\n",
+    "\n",
+    "# Grid search parameters\n",
+    "params_xgb2 = {\n",
+    "    'vec__ngram_range': [(1, 1), (1, 2)],\n",
+    "    'skb__k': [100, 500, 1000],\n",
+    "    'clf__n_estimators': [100, 200],\n",
+    "    'clf__max_depth': [3, 5],\n",
+    "    'clf__learning_rate': [0.1, 0.3]\n",
+    "}\n",
+    "\n",
+    "# Train using GridSearchCV\n",
+    "clf_xgb2 = GridSearchCV(pipe_xgb2, params_xgb2, cv=2)\n",
+    "clf_xgb2.fit(X_txt_train2, y_train2)\n",
+    "\n",
+    "# Predictions\n",
+    "train_preds_xgb2 = clf_xgb2.predict(X_txt_train2)\n",
+    "test_preds_xgb2 = clf_xgb2.predict(X_txt_test2)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 21,
+   "id": "bb80b00a",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "\n",
+      "[Task 2 - XGBoost + CountVectorizer + SelectKBest] Training Metrics:\n",
+      "Accuracy: 0.9250\n",
+      "Micro F1: 0.9250\n",
+      "Macro F1: 0.7557\n",
+      "\n",
+      "[Task 2 - XGBoost + CountVectorizer + SelectKBest] Testing Metrics:\n",
+      "Accuracy: 0.9050\n",
+      "Micro F1: 0.9050\n",
+      "Macro F1: 0.6862\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Training performance\n",
+    "train_acc_xgb2 = accuracy_score(y_train2, train_preds_xgb2)\n",
+    "train_micro_f1_xgb2 = f1_score(y_train2, train_preds_xgb2, average='micro')\n",
+    "train_macro_f1_xgb2 = f1_score(y_train2, train_preds_xgb2, average='macro')\n",
+    "\n",
+    "# Testing performance\n",
+    "test_acc_xgb2 = accuracy_score(y_test2, test_preds_xgb2)\n",
+    "test_micro_f1_xgb2 = f1_score(y_test2, test_preds_xgb2, average='micro')\n",
+    "test_macro_f1_xgb2 = f1_score(y_test2, test_preds_xgb2, average='macro')\n",
+    "\n",
+    "print(\"\\n[Task 2 - XGBoost + CountVectorizer + SelectKBest] Training Metrics:\")\n",
+    "print(f\"Accuracy: {train_acc_xgb2:.4f}\")\n",
+    "print(f\"Micro F1: {train_micro_f1_xgb2:.4f}\")\n",
+    "print(f\"Macro F1: {train_macro_f1_xgb2:.4f}\")\n",
+    "\n",
+    "print(\"\\n[Task 2 - XGBoost + CountVectorizer + SelectKBest] Testing Metrics:\")\n",
+    "print(f\"Accuracy: {test_acc_xgb2:.4f}\")\n",
+    "print(f\"Micro F1: {test_micro_f1_xgb2:.4f}\")\n",
+    "print(f\"Macro F1: {test_macro_f1_xgb2:.4f}\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "582fd7f5",
+   "metadata": {},
+   "source": [
+    "Low Macro F1 score but very high Accuracy and Micro F1 score. The model is struggling to make final predictions whilst being on the edge of overfitting"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 22,
+   "id": "6f705c87",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Top 30 most important features (Nature vs. Non-Nature):\n",
+      "\n",
+      "['park' 'weather' 'parking' 'street' 'natural' 'http' 'spot' 'san'\n",
+      " 'school' 'don' 'place' 'living' 'like' 'road' 'away' 'hit' 'time' 'gt'\n",
+      " 'lot' 'south' 'stuff' 'locations' 'antonio' 'said' 'amp' 'old' 'maps'\n",
+      " 'shrimp' 'fried' 'exercise']\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Task 2 Features \n",
+    "vec2 = clf_xgb2.best_estimator_.named_steps['vec']\n",
+    "skb2 = clf_xgb2.best_estimator_.named_steps['skb']\n",
+    "clf2 = clf_xgb2.best_estimator_.named_steps['clf']\n",
+    "\n",
+    "# Get selected feature names from CountVectorizer\n",
+    "feature_names2 = np.array(vec2.get_feature_names_out())\n",
+    "top_features2 = feature_names2[skb2.get_support(indices=True)]\n",
+    "\n",
+    "# Rank them by XGBoost importance\n",
+    "importances2 = clf2.feature_importances_\n",
+    "sorted_idx2 = np.argsort(importances2)[::-1]\n",
+    "top_features_sorted2 = top_features2[sorted_idx2]\n",
+    "\n",
+    "# Print top 30 features\n",
+    "print(\"Top 30 most important features (Nature vs. Non-Nature):\\n\")\n",
+    "print(top_features_sorted2[:30])"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 23,
+   "id": "07aa5380",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "# Attempt to try and raise the Macro F1 score for testing data using a weighted distribution param\n",
+    "# Define pipeline for Task 2\n",
+    "pipe_xgb2 = Pipeline([\n",
+    "    ('vec', CountVectorizer(stop_words='english')),\n",
+    "    ('skb', SelectKBest(score_func=chi2)),\n",
+    "    ('clf', XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42))\n",
+    "])\n",
+    "\n",
+    "# Grid search parameters\n",
+    "params_xgb2 = {\n",
+    "    'vec__ngram_range': [(1, 1), (1, 2)],\n",
+    "    'skb__k': [100, 500, 1000],\n",
+    "    'clf__n_estimators': [100, 200],\n",
+    "    'clf__max_depth': [3, 5],\n",
+    "    'clf__learning_rate': [0.1, 0.3],\n",
+    "    'clf__scale_pos_weight': [7.5]  # Approx 884 / 116 - A weight to give minority choice more influence\n",
+    "}\n",
+    "\n",
+    "# Train using GridSearchCV\n",
+    "clf_xgb2 = GridSearchCV(pipe_xgb2, params_xgb2, cv=2)\n",
+    "clf_xgb2.fit(X_txt_train2, y_train2)\n",
+    "\n",
+    "# Predictions\n",
+    "train_preds_xgb2 = clf_xgb2.predict(X_txt_train2)\n",
+    "test_preds_xgb2 = clf_xgb2.predict(X_txt_test2)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 24,
+   "id": "96cbf586",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "\n",
+      "[Task 2 - XGBoost + CountVectorizer + SelectKBest + Weight] Training Metrics:\n",
+      "Accuracy: 0.9875\n",
+      "Micro F1: 0.9875\n",
+      "Macro F1: 0.9712\n",
+      "\n",
+      "[Task 2 - XGBoost + CountVectorizer + SelectKBest + Weight] Testing Metrics:\n",
+      "Accuracy: 0.8750\n",
+      "Micro F1: 0.8750\n",
+      "Macro F1: 0.7093\n"
+     ]
+    }
+   ],
+   "source": [
+    "# Training performance\n",
+    "train_acc_xgb2 = accuracy_score(y_train2, train_preds_xgb2)\n",
+    "train_micro_f1_xgb2 = f1_score(y_train2, train_preds_xgb2, average='micro')\n",
+    "train_macro_f1_xgb2 = f1_score(y_train2, train_preds_xgb2, average='macro')\n",
+    "\n",
+    "# Testing performance\n",
+    "test_acc_xgb2 = accuracy_score(y_test2, test_preds_xgb2)\n",
+    "test_micro_f1_xgb2 = f1_score(y_test2, test_preds_xgb2, average='micro')\n",
+    "test_macro_f1_xgb2 = f1_score(y_test2, test_preds_xgb2, average='macro')\n",
+    "\n",
+    "print(\"\\n[Task 2 - XGBoost + CountVectorizer + SelectKBest + Weight] Training Metrics:\")\n",
+    "print(f\"Accuracy: {train_acc_xgb2:.4f}\")\n",
+    "print(f\"Micro F1: {train_micro_f1_xgb2:.4f}\")\n",
+    "print(f\"Macro F1: {train_macro_f1_xgb2:.4f}\")\n",
+    "\n",
+    "print(\"\\n[Task 2 - XGBoost + CountVectorizer + SelectKBest + Weight] Testing Metrics:\")\n",
+    "print(f\"Accuracy: {test_acc_xgb2:.4f}\")\n",
+    "print(f\"Micro F1: {test_micro_f1_xgb2:.4f}\")\n",
+    "print(f\"Macro F1: {test_macro_f1_xgb2:.4f}\")"
+   ]
+  },
+  {
+   "cell_type": "markdown",
+   "id": "d320ab9a",
+   "metadata": {},
+   "source": [
+    " Overfitting most likey occured during training with a dip in Accuracy and Micro F1 testing score. The testing Macro F1 score saw a negligible boost; In my opinion, the model will more than likely default to picking \"Non-nature\" as a choice, but the data for Nature is heavily skewed toward \"Non-Nature\" to the point where the model will struggle to predict the minority choice without overfitting on a different model."
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3 (ipykernel)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.7.11"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
